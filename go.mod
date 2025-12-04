@@ -1,4 +1,4 @@
-module pkg
+module github.com/socle-lab/pkg
 
 go 1.24.0
 
@@ -6,7 +6,6 @@ require (
 	github.com/go-playground/validator/v10 v10.28.0
 	github.com/socle-lab/core v0.0.0-20251106161308-531c76d0b519
 	github.com/socle-lab/render v0.0.0-20251105165546-489ae04308a8
-	golang.org/x/crypto v0.45.0
 )
 
 require (
@@ -124,6 +123,7 @@ require (
 	github.com/ysmood/gson v0.7.3 // indirect
 	github.com/ysmood/leakless v0.9.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
