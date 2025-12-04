@@ -3,12 +3,12 @@ package form
 import (
 	"fmt"
 	"net/http"
-	"pkg/util"
 	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/socle-lab/pkg/util"
 )
 
 type FieldTagValidation struct {
