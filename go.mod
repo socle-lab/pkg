@@ -3,6 +3,7 @@ module github.com/socle-lab/pkg
 go 1.24.0
 
 require (
+	github.com/Masterminds/squirrel v1.5.4
 	github.com/go-playground/validator/v10 v10.28.0
 	github.com/socle-lab/core v0.0.0-20251106161308-531c76d0b519
 	github.com/socle-lab/render v0.0.0-20251105165546-489ae04308a8
@@ -85,6 +86,8 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
+	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
+	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/markbates/errx v1.1.0 // indirect
