@@ -34,5 +34,6 @@ type GridHead struct {
 type GridField struct {
 	Label    string
 	Sortable bool
+	Position int
 	Enabled  bool
 }
