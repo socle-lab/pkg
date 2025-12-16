@@ -1,21 +1,21 @@
 package grid
 
-import "sort"
-
 type GridHead struct {
-	Fields []GridField
+	Fields []GridField `json:"fields" yaml:"fields"`
 }
 
-type GridField struct {
-	Name     string
-	Label    string
-	Sortable bool
-	Position int
-	Enabled  bool
+func (h *GridHead) Normalize() {
+	for i := range h.Fields {
+		h.Fields[i].Normalize()
+	}
+	//SortElements(h.Fields)
 }
 
-func (h *GridHead) SortFields() {
-	sort.Slice(h.Fields, func(i, j int) bool {
-		return h.Fields[i].Position < h.Fields[j].Position
-	})
+func (h GridHead) Validate() error {
+	for _, f := range h.Fields {
+		if err := f.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

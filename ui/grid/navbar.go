@@ -1,22 +1,56 @@
 package grid
 
-import "sort"
-
+// Optional navbar (si tu veux le garder)
 type GridNavbar struct {
-	Items   []GridNavbarItem
-	Enabled bool
+	Enabled bool `json:"enabled" yaml:"enabled"`
+	// Intention-only: frontend decides rendering (tabs, pills, menu)
+	Items []GridNavbarItem `json:"items" yaml:"items"`
 }
 
 type GridNavbarItem struct {
-	Name     string
-	Label    string
-	Path     string
-	Enabled  bool
-	Position int
+	ElementBase `json:",inline" yaml:",inline"`
+	Path        string `json:"path" yaml:"path"`
 }
 
-func (n *GridNavbar) SortItems() {
-	sort.Slice(n.Items, func(i, j int) bool {
-		return n.Items[i].Position < n.Items[j].Position
-	})
+func (n *GridNavbar) Normalize() {
+	for i := range n.Items {
+		n.Items[i].Normalize()
+	}
+	//SortElements(n.Items)
+}
+
+func (n GridNavbar) Validate() error {
+	for _, it := range n.Items {
+		if err := it.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (it *GridNavbarItem) Kind() ElementKind { return "navbar_item" }
+func (it *GridNavbarItem) Normalize()        { it.ElementBase.Normalize() }
+func (it GridNavbarItem) Validate() error    { return it.ValidateBase("navbar_item") }
+
+func (g *Grid) Normalize() {
+	g.Navbar.Normalize()
+	g.Filter.Normalize()
+	g.Head.Normalize()
+	g.Actions.Normalize()
+}
+
+func (g Grid) Validate() error {
+	if err := g.Navbar.Validate(); err != nil {
+		return err
+	}
+	if err := g.Filter.Validate(); err != nil {
+		return err
+	}
+	if err := g.Head.Validate(); err != nil {
+		return err
+	}
+	if err := g.Actions.Validate(); err != nil {
+		return err
+	}
+	return nil
 }
