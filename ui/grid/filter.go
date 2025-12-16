@@ -103,3 +103,23 @@ func (gf GridFilters) Validate() error {
 	}
 	return nil
 }
+
+func NewGridFilterField(
+	name string,
+	label string,
+	filterType FilterType,
+) GridFilterField {
+	f := GridFilterField{
+		ElementBase: ElementBase{
+			Name:     name,
+			Label:    label,
+			Visible:  true,
+			Priority: 100,
+		},
+		Type:     filterType,
+		Operator: OpContains,
+	}
+
+	f.Normalize()
+	return f
+}

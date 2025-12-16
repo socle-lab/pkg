@@ -101,3 +101,25 @@ func (ga GridActions) Validate() error {
 	}
 	return nil
 }
+
+func NewGridAction(
+	name string,
+	label string,
+	scope ActionScope,
+	intent ActionIntent,
+) GridAction {
+	a := GridAction{
+		ElementBase: ElementBase{
+			Name:     name,
+			Label:    label,
+			Visible:  true,
+			Priority: 100,
+		},
+		Scope:  scope,
+		Intent: intent,
+		Method: "GET",
+	}
+
+	a.Normalize()
+	return a
+}

@@ -45,3 +45,27 @@ func (f GridField) Validate() error {
 		return errors.New("field: invalid type: " + string(f.Type))
 	}
 }
+
+func NewGridField(
+	name string,
+	label string,
+	fieldType FieldType,
+	sortable bool,
+	Type string,
+	Togglable bool,
+) GridField {
+	f := GridField{
+		ElementBase: ElementBase{
+			Name:     name,
+			Label:    label,
+			Visible:  true,
+			Priority: 100,
+		},
+		Type:      fieldType,
+		Sortable:  false,
+		Togglable: true,
+	}
+
+	f.Normalize()
+	return f
+}
