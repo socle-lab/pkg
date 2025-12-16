@@ -50,9 +50,6 @@ func NewGridField(
 	name string,
 	label string,
 	fieldType FieldType,
-	sortable bool,
-	Type string,
-	Togglable bool,
 ) GridField {
 	f := GridField{
 		ElementBase: ElementBase{
@@ -63,7 +60,7 @@ func NewGridField(
 		},
 		Type:      fieldType,
 		Sortable:  false,
-		Togglable: true,
+		Togglable: false,
 	}
 
 	f.Normalize()
