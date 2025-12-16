@@ -9,14 +9,16 @@ type Grid struct {
 // NAVBAR
 type GridNavbar struct {
 	Type    string
-	Items   map[string]GridNavbarItem
+	Items   []GridNavbarItem
 	Enabled bool
 }
 
 type GridNavbarItem struct {
-	Label   string
-	Path    string
-	Enabled bool
+	Name     string
+	Label    string
+	Path     string
+	Enabled  bool
+	Position int
 }
 
 // FILTER
@@ -27,11 +29,12 @@ type GridFilter struct {
 
 // HEAD
 type GridHead struct {
-	Fields map[string]GridField
+	Fields []GridField
 }
 
 // FIELD
 type GridField struct {
+	Name     string
 	Label    string
 	Sortable bool
 	Position int
