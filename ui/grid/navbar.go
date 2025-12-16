@@ -54,3 +54,22 @@ func (g Grid) Validate() error {
 	}
 	return nil
 }
+
+func NewGridNavbarItem(
+	name string,
+	label string,
+	path string,
+) GridNavbarItem {
+	item := GridNavbarItem{
+		ElementBase: ElementBase{
+			Name:     name,
+			Label:    label,
+			Visible:  true,
+			Priority: 100,
+		},
+		Path: path,
+	}
+
+	item.Normalize()
+	return item
+}
