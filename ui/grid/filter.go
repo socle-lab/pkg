@@ -79,13 +79,14 @@ func (f GridFilterField) Validate() error {
 }
 
 // Filters container: intention only (fields per line, etc.)
-type GridFilters struct {
-	Enabled       bool              `json:"enabled" yaml:"enabled"`
-	FieldsPerLine int               `json:"fields_per_line" yaml:"fields_per_line"`
-	Fields        []GridFilterField `json:"fields" yaml:"fields"`
+type GridFilter struct {
+	Enabled                bool              `json:"enabled" yaml:"enabled"`
+	FieldsPerLine          int               `json:"fields_per_line" yaml:"fields_per_line"`
+	Fields                 []GridFilterField `json:"fields" yaml:"fields"`
+	AdvancedFilterFormPath string            `json:"advanced_filter_form_path,omitempty" yaml:"advanced_filter_form_path,omitempty"`
 }
 
-func (gf *GridFilters) Normalize() {
+func (gf *GridFilter) Normalize() {
 	if gf.FieldsPerLine <= 0 {
 		gf.FieldsPerLine = 3
 	}
@@ -95,7 +96,7 @@ func (gf *GridFilters) Normalize() {
 	//SortElements(gf.Fields)
 }
 
-func (gf GridFilters) Validate() error {
+func (gf GridFilter) Validate() error {
 	for _, f := range gf.Fields {
 		if err := f.Validate(); err != nil {
 			return err
