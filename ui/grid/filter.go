@@ -83,6 +83,7 @@ type GridFilter struct {
 	Enabled                bool              `json:"enabled" yaml:"enabled"`
 	FieldsPerLine          int               `json:"fields_per_line" yaml:"fields_per_line"`
 	Fields                 []GridFilterField `json:"fields" yaml:"fields"`
+	Path                   string            `json:"path" yaml:"path"`
 	AdvancedFilterFormPath string            `json:"advanced_filter_form_path,omitempty" yaml:"advanced_filter_form_path,omitempty"`
 }
 
