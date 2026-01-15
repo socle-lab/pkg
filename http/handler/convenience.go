@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	socle "github.com/socle-lab/core"
+	"github.com/socle-lab/core"
 	"github.com/socle-lab/render"
 )
 
@@ -56,7 +56,7 @@ func (h *Handler) RandomString(n int) string {
 }
 
 func (h *Handler) Encrypt(text string) (string, error) {
-	enc := socle.Encryption{Key: []byte(h.Core.EncryptionKey)}
+	enc := core.Encryption{Key: []byte(h.Core.EncryptionKey)}
 
 	encrypted, err := enc.Encrypt(text)
 	if err != nil {
@@ -66,7 +66,7 @@ func (h *Handler) Encrypt(text string) (string, error) {
 }
 
 func (h *Handler) Decrypt(crypto string) (string, error) {
-	enc := socle.Encryption{Key: []byte(h.Core.EncryptionKey)}
+	enc := core.Encryption{Key: []byte(h.Core.EncryptionKey)}
 
 	decrypted, err := enc.Decrypt(crypto)
 	if err != nil {

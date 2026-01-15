@@ -356,6 +356,8 @@ github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxU
 github.com/microcosm-cc/bluemonday v1.0.2/go.mod h1:iVP4YcDBq+n/5fb23BhYFvIMq/leAFZyRl6bYmGDlGc=
 github.com/microcosm-cc/bluemonday v1.0.20 h1:flpzsq4KU3QIYAYGV/szUat7H+GPOXR0B2JU5A1Wp8Y=
 github.com/microcosm-cc/bluemonday v1.0.20/go.mod h1:yfBmMi8mxvaZut3Yytv+jTXRY8mxyjJ0/kQBTElld50=
+github.com/microcosm-cc/bluemonday v1.0.27 h1:MpEUotklkwCSLeH+Qdx1VJgNqLlpY2KXwXFM08ygZfk=
+github.com/microcosm-cc/bluemonday v1.0.27/go.mod h1:jFi9vgW+H7c3V0lb6nR74Ib/DIB5OBs92Dimizgw2cA=
 github.com/minio/crc64nvme v1.1.0 h1:e/tAguZ+4cw32D+IO/8GSf5UVr9y+3eJcxZI2WOO/7Q=
 github.com/minio/crc64nvme v1.1.0/go.mod h1:eVfm2fAzLlxMdUGc0EEBGSMmPwmXD5XiNRpnu9J3bvg=
 github.com/minio/md5-simd v1.1.2 h1:Gdi1DZK69+ZVMoNHRXJyNcxrMA4dSxoYHZSQbirFg34=
@@ -421,6 +423,8 @@ github.com/socle-lab/cache v0.0.0-20251105150942-9242d1bcf78f h1:D/CQFAT7+i8cMYj
 github.com/socle-lab/cache v0.0.0-20251105150942-9242d1bcf78f/go.mod h1:gh7UYdRadiJ/NtcJOPiIwbR4NiszSsH7+ycGtuTF/BE=
 github.com/socle-lab/core v0.0.0-20251106161308-531c76d0b519 h1:KV4hHITJQ/YYkjHSEeJwv3GT8dWBxYAsds3c6WNNbs4=
 github.com/socle-lab/core v0.0.0-20251106161308-531c76d0b519/go.mod h1:+mO8Pc8oWOvMKdQgmvjgdnvFIrFXQgYpzagyDsVw8gI=
+github.com/socle-lab/core v0.0.0-20260115135101-3d722fce44dd h1:BMG+IOk/uLrvse/9z3mwq/BN4+EEWUPl+ANn+nw5rOM=
+github.com/socle-lab/core v0.0.0-20260115135101-3d722fce44dd/go.mod h1:QJ71JijE9XGzTsmSYUkNa07Nlbj2jA0kLPqATWcLS44=
 github.com/socle-lab/filesystems v0.0.0-20251105164955-bd3018cb70ad h1:7VwkZbz9SBISi1uFPFb4cvyl0mNTxZuNtVS5ZkQpEm0=
 github.com/socle-lab/filesystems v0.0.0-20251105164955-bd3018cb70ad/go.mod h1:Ikd96GvrhjKCDFyD5RJfJB0fAGoIOU9mHEC+B9v1YRI=
 github.com/socle-lab/mailer v0.0.0-20251105165314-e344160e09a1 h1:5tKXpUgzT96USjiBqSfB6GnR9Um+OpGfCwhezPFSQ7M=

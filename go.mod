@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/go-playground/validator/v10 v10.28.0
-	github.com/socle-lab/core v0.0.0-20251106161308-531c76d0b519
+	github.com/socle-lab/core v0.0.0-20260115135101-3d722fce44dd
 	github.com/socle-lab/render v0.0.0-20251105165546-489ae04308a8
 )
 
@@ -96,7 +96,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
-	github.com/microcosm-cc/bluemonday v1.0.20 // indirect
+	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/minio/crc64nvme v1.1.0 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/minio/minio-go/v7 v7.0.97 // indirect
