@@ -255,3 +255,246 @@ func isZeroValue(v reflect.Value) bool {
 		return reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
 	}
 }
+
+// FilterMap représente la structure d'un filtre dans la map retournée
+type FilterMap map[string]map[string]interface{}
+
+// ParseFilterMap parse les query parameters en se basant sur les tags filter d'une struct modèle
+// et retourne une map structurée où :
+// - La clé principale est le nom du champ (ex: "user_login")
+// - La valeur est une map avec "value" et "criteria"
+// Le critère peut être surchargé via un query parameter "{key}_criteria"
+func ParseFilterMap(modelStruct interface{}, r *http.Request) (FilterMap, error) {
+	qs := r.URL.Query()
+	filterMap := make(FilterMap)
+
+	// Utiliser la réflexion pour parcourir les champs de la struct
+	v := reflect.ValueOf(modelStruct)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("modelStruct must be a struct or pointer to struct")
+	}
+
+	t := v.Type()
+
+	// Parcourir tous les champs de la struct
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("filter")
+		if tag == "" || tag == "-" {
+			continue
+		}
+
+		// Parser le tag: "user_login,criteria=ILIKE" ou "user_login,type=ILIKE" (compatibilité)
+		parts := strings.Split(tag, ",")
+		if len(parts) == 0 {
+			continue
+		}
+
+		// La première partie est le nom du champ (clé pour le query parameter)
+		fieldNameKey := strings.TrimSpace(parts[0])
+		if fieldNameKey == "" {
+			continue
+		}
+
+		// Le nom de la colonne DB (utilisé dans la map et dans les requêtes SQL) - sécurité : utiliser le tag db
+		dbColumnName := field.Tag.Get("db")
+		if dbColumnName == "" || dbColumnName == "-" {
+			// Si pas de tag db, convertir le nom du champ Go en snake_case (ex: UserLogin -> user_login)
+			dbColumnName = camelToSnake(field.Name)
+		}
+		// Le nom du query parameter (préfixé avec "filter_")
+		queryParamName := fmt.Sprintf("filter_%s", fieldNameKey)
+
+		// Extraire le critère par défaut du tag
+		defaultCriteria := ""
+		for j := 1; j < len(parts); j++ {
+			part := strings.TrimSpace(parts[j])
+			if strings.HasPrefix(part, "criteria=") {
+				defaultCriteria = strings.TrimPrefix(part, "criteria=")
+				break
+			} else if strings.HasPrefix(part, "type=") {
+				// Support de compatibilité pour l'ancien format
+				defaultCriteria = strings.TrimPrefix(part, "type=")
+				break
+			}
+		}
+
+		// Vérifier si le query parameter existe pour ce champ
+		value := qs.Get(queryParamName)
+		if value == "" {
+			continue
+		}
+
+		// Vérifier si le critère est surchargé via un query parameter
+		criteria := defaultCriteria
+		if criteriaOverride := qs.Get(queryParamName + "_criteria"); criteriaOverride != "" {
+			criteria = strings.ToUpper(criteriaOverride)
+		}
+
+		// Parser la valeur selon le type de critère
+		filterData := make(map[string]interface{})
+		filterData["criteria"] = criteria
+
+		switch criteria {
+		case "DATE":
+			// Pour DATE, on attend une date au format dd/MM/yyyy
+			filterData["value"] = strings.TrimSpace(value)
+
+		case "BETWEEN":
+			// Pour BETWEEN, on attend deux valeurs séparées par un tiret (-)
+			parts := strings.Split(value, "-")
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("BETWEEN filter requires two values separated by '-' for field %s", queryParamName)
+			}
+			filterData["value"] = []string{strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])}
+
+		case "IN":
+			// Pour IN, on attend plusieurs valeurs séparées par des virgules
+			parts := strings.Split(value, ",")
+			values := make([]string, 0, len(parts))
+			for _, part := range parts {
+				trimmed := strings.TrimSpace(part)
+				if trimmed != "" {
+					values = append(values, trimmed)
+				}
+			}
+			if len(values) == 0 {
+				continue // Ignorer si aucune valeur valide
+			}
+			filterData["value"] = values
+
+		case "LIKE", "ILIKE":
+			// Pour LIKE et ILIKE, la valeur est une string simple
+			filterData["value"] = value
+
+		case "=", "":
+			// Pour l'égalité (ou critère vide), la valeur est une string simple
+			filterData["value"] = value
+			if criteria == "" {
+				filterData["criteria"] = "="
+			}
+
+		default:
+			// Par défaut, traiter comme une string simple
+			filterData["value"] = value
+		}
+
+		// Utiliser le nom de la colonne DB comme clé dans la map (pas le query parameter)
+		filterMap[dbColumnName] = filterData
+	}
+
+	return filterMap, nil
+}
+
+// ApplyFilterMap applique les filtres d'une FilterMap à une requête squirrel.SelectBuilder
+func ApplyFilterMap(q squirrel.SelectBuilder, filterMap FilterMap) (squirrel.SelectBuilder, error) {
+	for fieldName, filterData := range filterMap {
+		value, ok := filterData["value"]
+		if !ok || value == nil {
+			continue
+		}
+
+		criteria, ok := filterData["criteria"].(string)
+		if !ok {
+			criteria = "="
+		}
+
+		switch criteria {
+		case "DATE":
+			// Pour DATE, accepter dd/MM/yyyy ou yyyy-MM-dd et filtrer par date exacte
+			strValue, ok := value.(string)
+			if !ok {
+				continue
+			}
+
+			var sqlDate string
+			// Détecter le format de la date
+			if strings.Contains(strValue, "/") {
+				// Format dd/MM/yyyy -> convertir en yyyy-MM-dd
+				dateParts := strings.Split(strValue, "/")
+				if len(dateParts) == 3 {
+					sqlDate = fmt.Sprintf("%s-%s-%s", dateParts[2], dateParts[1], dateParts[0])
+				}
+			} else if strings.Contains(strValue, "-") {
+				// Format yyyy-MM-dd -> utiliser directement
+				sqlDate = strValue
+			}
+
+			// Filtrer par date exacte si le format est valide
+			if sqlDate != "" {
+				q = q.Where(squirrel.Expr(fmt.Sprintf("DATE(%s) = ?", fieldName), sqlDate))
+			}
+
+		case "ILIKE", "LIKE":
+			// Pour LIKE et ILIKE, la valeur doit être une string
+			strValue, ok := value.(string)
+			if !ok {
+				continue
+			}
+			// Échapper les caractères spéciaux SQL (_ et %) pour éviter qu'ils soient interprétés comme des wildcards
+			// Le _ correspond à un caractère, le % à plusieurs caractères
+			escapedValue := escapeLikePattern(strValue)
+			// Ajouter les wildcards pour la recherche partielle
+			pattern := fmt.Sprintf("%%%s%%", escapedValue)
+			if criteria == "ILIKE" {
+				q = q.Where(squirrel.Expr(fmt.Sprintf("%s ILIKE ?", fieldName), pattern))
+			} else {
+				q = q.Where(squirrel.Expr(fmt.Sprintf("%s LIKE ?", fieldName), pattern))
+			}
+
+		case "BETWEEN":
+			// Pour BETWEEN, la valeur doit être un slice de deux strings
+			values, ok := value.([]string)
+			if !ok || len(values) != 2 {
+				continue
+			}
+			q = q.Where(squirrel.Expr(fmt.Sprintf("%s BETWEEN ? AND ?", fieldName), values[0], values[1]))
+
+		case "IN":
+			// Pour IN, la valeur doit être un slice de strings
+			values, ok := value.([]string)
+			if !ok || len(values) == 0 {
+				continue
+			}
+			// Convertir le slice en interface{} pour squirrel
+			args := make([]interface{}, len(values))
+			for i, v := range values {
+				args[i] = v
+			}
+			q = q.Where(squirrel.Eq{fieldName: args})
+
+		case "=", "":
+			// Pour l'égalité, la valeur est une string simple
+			strValue, ok := value.(string)
+			if !ok {
+				continue
+			}
+			q = q.Where(squirrel.Eq{fieldName: strValue})
+
+		default:
+			// Pour les autres critères, traiter comme une égalité
+			strValue, ok := value.(string)
+			if !ok {
+				continue
+			}
+			q = q.Where(squirrel.Expr(fmt.Sprintf("%s %s ?", fieldName, criteria), strValue))
+		}
+	}
+
+	return q, nil
+}
+
+// escapeLikePattern échappe les caractères spéciaux SQL (_ et %) dans les patterns LIKE/ILIKE
+// En SQL, _ correspond à un caractère et % à plusieurs caractères
+// Pour chercher ces caractères littéralement, il faut les échapper avec un backslash
+func escapeLikePattern(s string) string {
+	// Remplacer \ par \\ d'abord (pour éviter d'échapper les échappements)
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	// Puis échapper _ et %
+	s = strings.ReplaceAll(s, "_", "\\_")
+	s = strings.ReplaceAll(s, "%", "\\%")
+	return s
+}
