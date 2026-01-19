@@ -1,4 +1,4 @@
-package app
+package boostrap
 
 import (
 	"os"
@@ -27,6 +27,10 @@ func (app *Application) ListenForShutdown() {
 	app.shutdown()
 
 	os.Exit(0)
+}
+
+func (a *Application) ListenAndServe(entrypoint string) error {
+	return a.Core.ListenAndServe(entrypoint)
 }
 
 func (a *Application) Log(tag string, args ...any) {

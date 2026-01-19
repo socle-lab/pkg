@@ -425,6 +425,8 @@ github.com/socle-lab/core v0.0.0-20251106161308-531c76d0b519 h1:KV4hHITJQ/YYkjHS
 github.com/socle-lab/core v0.0.0-20251106161308-531c76d0b519/go.mod h1:+mO8Pc8oWOvMKdQgmvjgdnvFIrFXQgYpzagyDsVw8gI=
 github.com/socle-lab/core v0.0.0-20260115135101-3d722fce44dd h1:BMG+IOk/uLrvse/9z3mwq/BN4+EEWUPl+ANn+nw5rOM=
 github.com/socle-lab/core v0.0.0-20260115135101-3d722fce44dd/go.mod h1:QJ71JijE9XGzTsmSYUkNa07Nlbj2jA0kLPqATWcLS44=
+github.com/socle-lab/core v0.0.0-20260119080608-ec4940560265 h1:ddFiRcIZZiPJK8DstQmjutX40UiH+CDjqRnRbVJBnXc=
+github.com/socle-lab/core v0.0.0-20260119080608-ec4940560265/go.mod h1:QJ71JijE9XGzTsmSYUkNa07Nlbj2jA0kLPqATWcLS44=
 github.com/socle-lab/filesystems v0.0.0-20251105164955-bd3018cb70ad h1:7VwkZbz9SBISi1uFPFb4cvyl0mNTxZuNtVS5ZkQpEm0=
 github.com/socle-lab/filesystems v0.0.0-20251105164955-bd3018cb70ad/go.mod h1:Ikd96GvrhjKCDFyD5RJfJB0fAGoIOU9mHEC+B9v1YRI=
 github.com/socle-lab/mailer v0.0.0-20251105165314-e344160e09a1 h1:5tKXpUgzT96USjiBqSfB6GnR9Um+OpGfCwhezPFSQ7M=

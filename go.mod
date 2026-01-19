@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/go-playground/validator/v10 v10.28.0
-	github.com/socle-lab/core v0.0.0-20260115135101-3d722fce44dd
+	github.com/socle-lab/core v0.0.0-20260119080608-ec4940560265
 	github.com/socle-lab/render v0.0.0-20251105165546-489ae04308a8
 )
 
