@@ -420,10 +420,8 @@ github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/socle-lab/cache v0.0.0-20251105150942-9242d1bcf78f h1:D/CQFAT7+i8cMYjtIAKQOC1VqZGYDTV65xdnyHu3Y38=
 github.com/socle-lab/cache v0.0.0-20251105150942-9242d1bcf78f/go.mod h1:gh7UYdRadiJ/NtcJOPiIwbR4NiszSsH7+ycGtuTF/BE=
-github.com/socle-lab/core v0.0.0-20260119080608-ec4940560265 h1:ddFiRcIZZiPJK8DstQmjutX40UiH+CDjqRnRbVJBnXc=
-github.com/socle-lab/core v0.0.0-20260119080608-ec4940560265/go.mod h1:QJ71JijE9XGzTsmSYUkNa07Nlbj2jA0kLPqATWcLS44=
-github.com/socle-lab/core v0.0.0-20260119120043-5b3a09aacf9b h1:6XFXbwe0i7XEhqgbB1sF9tfC1KunB0RuAeQbPQvEPmY=
-github.com/socle-lab/core v0.0.0-20260119120043-5b3a09aacf9b/go.mod h1:QJ71JijE9XGzTsmSYUkNa07Nlbj2jA0kLPqATWcLS44=
+github.com/socle-lab/core v0.0.0-20260121033325-a4e8183c15ca h1:UI6k0/GxJVCuhUsol/0wVMxQQzc0DN9dosnILkCMZHA=
+github.com/socle-lab/core v0.0.0-20260121033325-a4e8183c15ca/go.mod h1:QJ71JijE9XGzTsmSYUkNa07Nlbj2jA0kLPqATWcLS44=
 github.com/socle-lab/filesystems v0.0.0-20251105164955-bd3018cb70ad h1:7VwkZbz9SBISi1uFPFb4cvyl0mNTxZuNtVS5ZkQpEm0=
 github.com/socle-lab/filesystems v0.0.0-20251105164955-bd3018cb70ad/go.mod h1:Ikd96GvrhjKCDFyD5RJfJB0fAGoIOU9mHEC+B9v1YRI=
 github.com/socle-lab/mailer v0.0.0-20251105165314-e344160e09a1 h1:5tKXpUgzT96USjiBqSfB6GnR9Um+OpGfCwhezPFSQ7M=

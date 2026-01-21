@@ -1,6 +1,7 @@
 package boostrap
 
 import (
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -31,6 +32,10 @@ func (app *Application) ListenForShutdown() {
 
 func (a *Application) ListenAndServe(entrypoint string) error {
 	return a.Core.ListenAndServe(entrypoint)
+}
+
+func (a *Application) MountRoutes(entrypoint string, routes http.Handler) {
+	a.Core.Entrypoints[entrypoint].Routes.Mount("/", routes)
 }
 
 func (a *Application) Log(tag string, args ...any) {
