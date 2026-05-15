@@ -158,7 +158,7 @@ func ParseSortMap(modelStruct interface{}, r *http.Request) (SortMap, error) {
 
 // ApplySortMap applique les tris d'une SortMap à une requête squirrel.SelectBuilder
 func ApplySortMap(q squirrel.SelectBuilder, sortMap SortMap) squirrel.SelectBuilder {
-	if sortMap == nil || len(sortMap) == 0 {
+	if len(sortMap) == 0 {
 		return q
 	}
 

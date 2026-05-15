@@ -6,5 +6,5 @@ import (
 
 // Handlers is the type for handlers, and gives access to Socle and models
 type Handler struct {
-	Core *core.Core
+	*core.Core
 }

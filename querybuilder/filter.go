@@ -259,6 +259,41 @@ func isZeroValue(v reflect.Value) bool {
 // FilterMap représente la structure d'un filtre dans la map retournée
 type FilterMap map[string]map[string]interface{}
 
+const globalFilterKey = "__global__"
+
+func normalizeCriteria(criteria string) string {
+	c := strings.ToUpper(strings.TrimSpace(criteria))
+	switch c {
+	case "", "EQ":
+		return "="
+	case "GTE":
+		return ">="
+	case "LTE":
+		return "<="
+	case "GT":
+		return ">"
+	case "LT":
+		return "<"
+	case "NEQ":
+		return "!="
+	default:
+		return c
+	}
+}
+
+// splitINFilterValues splits a comma-separated filter value into trimmed non-empty tokens (for SQL IN).
+func splitINFilterValues(s string) []string {
+	parts := strings.Split(s, " ")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // ParseFilterMap parse les query parameters en se basant sur les tags filter d'une struct modèle
 // et retourne une map structurée où :
 // - La clé principale est le nom du champ (ex: "user_login")
@@ -267,6 +302,9 @@ type FilterMap map[string]map[string]interface{}
 func ParseFilterMap(modelStruct interface{}, r *http.Request) (FilterMap, error) {
 	qs := r.URL.Query()
 	filterMap := make(FilterMap)
+	globalColumns := make([]string, 0)
+	globalColumnsSet := make(map[string]struct{})
+	globalDefaultCriteria := "IN"
 
 	// Utiliser la réflexion pour parcourir les champs de la struct
 	v := reflect.ValueOf(modelStruct)
@@ -310,15 +348,28 @@ func ParseFilterMap(modelStruct interface{}, r *http.Request) (FilterMap, error)
 
 		// Extraire le critère par défaut du tag
 		defaultCriteria := ""
+		isGlobal := false
+		fieldGlobalCriteria := ""
 		for j := 1; j < len(parts); j++ {
 			part := strings.TrimSpace(parts[j])
 			if strings.HasPrefix(part, "criteria=") {
 				defaultCriteria = strings.TrimPrefix(part, "criteria=")
-				break
 			} else if strings.HasPrefix(part, "type=") {
 				// Support de compatibilité pour l'ancien format
 				defaultCriteria = strings.TrimPrefix(part, "type=")
-				break
+			} else if strings.HasPrefix(part, "global=") {
+				isGlobal = strings.EqualFold(strings.TrimPrefix(part, "global="), "true")
+			} else if strings.HasPrefix(part, "global_criteria=") {
+				fieldGlobalCriteria = strings.TrimPrefix(part, "global_criteria=")
+			}
+		}
+		if isGlobal {
+			if _, exists := globalColumnsSet[dbColumnName]; !exists {
+				globalColumnsSet[dbColumnName] = struct{}{}
+				globalColumns = append(globalColumns, dbColumnName)
+			}
+			if strings.TrimSpace(fieldGlobalCriteria) != "" {
+				globalDefaultCriteria = fieldGlobalCriteria
 			}
 		}
 
@@ -331,8 +382,9 @@ func ParseFilterMap(modelStruct interface{}, r *http.Request) (FilterMap, error)
 		// Vérifier si le critère est surchargé via un query parameter
 		criteria := defaultCriteria
 		if criteriaOverride := qs.Get(queryParamName + "_criteria"); criteriaOverride != "" {
-			criteria = strings.ToUpper(criteriaOverride)
+			criteria = criteriaOverride
 		}
+		criteria = normalizeCriteria(criteria)
 
 		// Parser la valeur selon le type de critère
 		filterData := make(map[string]interface{})
@@ -370,13 +422,6 @@ func ParseFilterMap(modelStruct interface{}, r *http.Request) (FilterMap, error)
 			// Pour LIKE et ILIKE, la valeur est une string simple
 			filterData["value"] = value
 
-		case "=", "":
-			// Pour l'égalité (ou critère vide), la valeur est une string simple
-			filterData["value"] = value
-			if criteria == "" {
-				filterData["criteria"] = "="
-			}
-
 		default:
 			// Par défaut, traiter comme une string simple
 			filterData["value"] = value
@@ -386,11 +431,32 @@ func ParseFilterMap(modelStruct interface{}, r *http.Request) (FilterMap, error)
 		filterMap[dbColumnName] = filterData
 	}
 
+	// Filtre global : un seul paramètre query, appliqué aux colonnes taguées global=true
+	globalValue := strings.TrimSpace(qs.Get("filter_global"))
+	if globalValue != "" && len(globalColumns) > 0 {
+		globalCriteria := qs.Get("filter_global_criteria")
+		if strings.TrimSpace(globalCriteria) == "" {
+			globalCriteria = globalDefaultCriteria
+		}
+		globalCriteria = normalizeCriteria(globalCriteria)
+		if globalCriteria == "" {
+			globalCriteria = "IN"
+		}
+
+		filterMap[globalFilterKey] = map[string]interface{}{
+			"criteria": "GLOBAL",
+			"operator": globalCriteria,
+			"value":    globalValue,
+			"columns":  globalColumns,
+		}
+	}
+
 	return filterMap, nil
 }
 
 // ApplyFilterMap applique les filtres d'une FilterMap à une requête squirrel.SelectBuilder
 func ApplyFilterMap(q squirrel.SelectBuilder, filterMap FilterMap) (squirrel.SelectBuilder, error) {
+
 	for fieldName, filterData := range filterMap {
 		value, ok := filterData["value"]
 		if !ok || value == nil {
@@ -400,6 +466,81 @@ func ApplyFilterMap(q squirrel.SelectBuilder, filterMap FilterMap) (squirrel.Sel
 		criteria, ok := filterData["criteria"].(string)
 		if !ok {
 			criteria = "="
+		}
+
+		criteria = normalizeCriteria(criteria)
+
+		// GLOBAL: recherche transversale sur plusieurs colonnes en OR.
+		if fieldName == globalFilterKey || criteria == "GLOBAL" {
+
+			strValue, ok := value.(string)
+			if !ok || strings.TrimSpace(strValue) == "" {
+				continue
+			}
+
+			rawColumns, ok := filterData["columns"]
+			if !ok {
+				continue
+			}
+
+			var columns []string
+			switch c := rawColumns.(type) {
+			case []string:
+				columns = c
+			case []interface{}:
+				columns = make([]string, 0, len(c))
+				for _, item := range c {
+					if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
+						columns = append(columns, s)
+					}
+				}
+			default:
+				continue
+			}
+			if len(columns) == 0 {
+				continue
+			}
+
+			operator, _ := filterData["operator"].(string)
+			operator = normalizeCriteria(operator)
+
+			if operator == "" {
+				operator = "IN"
+			}
+
+			ors := make(squirrel.Or, 0, len(columns))
+			switch operator {
+			case "ILIKE", "LIKE":
+				escapedValue := escapeLikePattern(strValue)
+				pattern := fmt.Sprintf("%%%s%%", escapedValue)
+				for _, col := range columns {
+					ors = append(ors, squirrel.Expr(fmt.Sprintf("CAST(%s AS TEXT) %s ?", col, operator), pattern))
+				}
+			case "IN":
+				vals := splitINFilterValues(strValue)
+				if len(vals) == 0 {
+					continue
+				}
+				placeholders := make([]string, len(vals))
+				args := make([]interface{}, len(vals))
+				for i, v := range vals {
+					placeholders[i] = "?"
+					args[i] = v
+				}
+				inList := strings.Join(placeholders, ",")
+				for _, col := range columns {
+					ors = append(ors, squirrel.Expr(
+						fmt.Sprintf("CAST(%s AS TEXT) IN (%s)", col, inList),
+						args...,
+					))
+				}
+			default:
+				for _, col := range columns {
+					ors = append(ors, squirrel.Expr(fmt.Sprintf("%s %s ?", col, operator), strValue))
+				}
+			}
+			q = q.Where(ors)
+			continue
 		}
 
 		switch criteria {
@@ -466,7 +607,7 @@ func ApplyFilterMap(q squirrel.SelectBuilder, filterMap FilterMap) (squirrel.Sel
 			}
 			q = q.Where(squirrel.Eq{fieldName: args})
 
-		case "=", "":
+		case "=":
 			// Pour l'égalité, la valeur est une string simple
 			strValue, ok := value.(string)
 			if !ok {
