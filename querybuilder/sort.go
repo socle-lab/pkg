@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -78,101 +80,188 @@ func BuildOrderByFromStruct(q squirrel.SelectBuilder, filter any) (squirrel.Sele
 // SortMap représente la structure d'un tri dans la map retournée
 type SortMap map[string]string // clé: nom de colonne DB, valeur: direction (ASC/DESC)
 
-// ParseSortMap parse les query parameters en se basant sur les tags sorting d'une struct modèle
-// et retourne une map structurée où :
-// - La clé principale est le nom de la colonne DB (ex: "user_login")
-// - La valeur est la direction du tri (ASC ou DESC)
-// La direction peut être surchargée via un query parameter "sort_{key}_order"
-func ParseSortMap(modelStruct interface{}, r *http.Request) (SortMap, error) {
-	qs := r.URL.Query()
-	sortMap := make(SortMap)
+// sortingField : champ d'un modèle portant une balise sorting.
+//
+// Format de la balise : `sorting:"<clé>,order=ASC|DESC,priority=N"`
+//   - clé      : nom utilisé dans le paramètre de requête « sorting_<clé>_order » (surcharge de la direction) ;
+//   - order    : direction par défaut (ASC si absente ou invalide) ;
+//   - priority : rang dans la clause ORDER BY quand plusieurs colonnes sont triées (petit nombre d'abord).
+//     Sans priority, c'est l'ordre de déclaration des champs qui départage.
+type sortingField struct {
+	key      string // clé de la balise (paramètre de requête)
+	column   string // colonne SQL (balise db, sinon nom du champ en snake_case)
+	order    string // ASC ou DESC
+	priority int    // valeur de priority=N ; maxInt si absente
+	index    int    // position du champ dans la struct
+}
 
-	// Utiliser la réflexion pour parcourir les champs de la struct
-	v := reflect.ValueOf(modelStruct)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
+const noPriority = int(^uint(0) >> 1)
+
+// modelColumn : colonne SQL d'un champ (balise db, sinon nom du champ en snake_case) ; "" si db:"-".
+func modelColumn(field reflect.StructField) string {
+	column := field.Tag.Get("db")
+	if column == "-" {
+		return ""
 	}
-	if v.Kind() != reflect.Struct {
+	if column == "" {
+		column = camelToSnake(field.Name)
+	}
+	return column
+}
+
+// structType : type struct d'un modèle (valeur ou pointeur).
+func structType(model any) (reflect.Type, error) {
+	t := reflect.TypeOf(model)
+	if t != nil && t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t == nil || t.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("modelStruct must be a struct or pointer to struct")
 	}
+	return t, nil
+}
 
-	t := v.Type()
-
-	// Parcourir tous les champs de la struct
+// sortingFields : champs du modèle portant une balise sorting, dans l'ordre de déclaration.
+func sortingFields(t reflect.Type) []sortingField {
+	var out []sortingField
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		tag := field.Tag.Get("sorting")
 		if tag == "" || tag == "-" {
 			continue
 		}
-
-		// Parser le tag: "user_login,order=ASC" ou "user_login,order=DESC"
 		parts := strings.Split(tag, ",")
-		if len(parts) == 0 {
+		key := strings.TrimSpace(parts[0])
+		column := modelColumn(field)
+		if key == "" || column == "" {
 			continue
 		}
-
-		// La première partie est le nom du champ (clé pour le query parameter)
-		fieldNameKey := strings.TrimSpace(parts[0])
-		if fieldNameKey == "" {
-			continue
-		}
-
-		// Le nom de la colonne DB (utilisé dans la map et dans les requêtes SQL) - sécurité : utiliser le tag db
-		dbColumnName := field.Tag.Get("db")
-		if dbColumnName == "" || dbColumnName == "-" {
-			// Si pas de tag db, convertir le nom du champ Go en snake_case (ex: UserLogin -> user_login)
-			dbColumnName = camelToSnake(field.Name)
-		}
-
-		// Extraire l'ordre par défaut du tag
-		defaultOrder := "ASC"
-		for j := 1; j < len(parts); j++ {
-			part := strings.TrimSpace(parts[j])
-			if strings.HasPrefix(part, "order=") {
-				defaultOrder = strings.ToUpper(strings.TrimPrefix(part, "order="))
-				break
+		f := sortingField{key: key, column: column, order: "ASC", priority: noPriority, index: i}
+		for _, part := range parts[1:] {
+			part = strings.TrimSpace(part)
+			switch {
+			case strings.HasPrefix(part, "order="):
+				f.order = normalizeDirection(strings.TrimPrefix(part, "order="), "ASC")
+			case strings.HasPrefix(part, "priority="):
+				if n, err := strconv.Atoi(strings.TrimPrefix(part, "priority=")); err == nil {
+					f.priority = n
+				}
 			}
 		}
-
-		// Le nom du query parameter (préfixé avec "sorting_")
-		queryParamName := fmt.Sprintf("sorting_%s", fieldNameKey)
-
-		// Le tri est activé automatiquement si le tag sorting existe
-		// L'ordre peut être surchargé via un query parameter
-		order := defaultOrder
-		if orderOverride := qs.Get(queryParamName + "_order"); orderOverride != "" {
-			order = strings.ToUpper(orderOverride)
-		}
-
-		// Valider l'ordre (doit être ASC ou DESC)
-		if order != "ASC" && order != "DESC" {
-			order = "ASC" // Valeur par défaut si invalide
-		}
-
-		sortMap[dbColumnName] = order
+		out = append(out, f)
 	}
+	return out
+}
 
+// normalizeDirection : ASC ou DESC (insensible à la casse), sinon def.
+func normalizeDirection(direction, def string) string {
+	switch d := strings.ToUpper(strings.TrimSpace(direction)); d {
+	case "ASC", "DESC":
+		return d
+	}
+	return def
+}
+
+// ParseSortMap parse les query parameters en se basant sur les tags sorting d'une struct modèle
+// et retourne une map structurée où :
+// - La clé principale est le nom de la colonne DB (ex: "user_login")
+// - La valeur est la direction du tri (ASC ou DESC)
+// La direction peut être surchargée via un query parameter "sorting_{key}_order".
+// Une map n'a pas d'ordre : la priorité entre colonnes (option priority=N de la balise) est appliquée par
+// ApplySortMapFor, côté requête SQL.
+func ParseSortMap(modelStruct interface{}, r *http.Request) (SortMap, error) {
+	t, err := structType(modelStruct)
+	if err != nil {
+		return nil, err
+	}
+	qs := r.URL.Query()
+	sortMap := make(SortMap)
+	for _, f := range sortingFields(t) {
+		order := f.order
+		if override := qs.Get("sorting_" + f.key + "_order"); override != "" {
+			order = normalizeDirection(override, "ASC")
+		}
+		sortMap[f.column] = order
+	}
 	return sortMap, nil
 }
 
-// ApplySortMap applique les tris d'une SortMap à une requête squirrel.SelectBuilder
+// ApplySortMap applique les tris d'une SortMap à une requête squirrel.SelectBuilder.
+// Les colonnes sont prises par ordre alphabétique (une map Go n'a pas d'ordre : sans cela, la priorité entre
+// colonnes changeait d'une requête à l'autre). Pour choisir la priorité, utiliser ApplySortMapFor.
 func ApplySortMap(q squirrel.SelectBuilder, sortMap SortMap) squirrel.SelectBuilder {
 	if len(sortMap) == 0 {
 		return q
 	}
+	columns := make([]string, 0, len(sortMap))
+	for column := range sortMap {
+		columns = append(columns, column)
+	}
+	sort.Strings(columns)
+	parts := make([]string, 0, len(columns))
+	for _, column := range columns {
+		parts = append(parts, column+" "+normalizeDirection(sortMap[column], "ASC"))
+	}
+	return q.OrderBy(strings.Join(parts, ", "))
+}
 
-	// Construire la clause ORDER BY
-	var orderByParts []string
-	for column, direction := range sortMap {
-		orderByParts = append(orderByParts, fmt.Sprintf("%s %s", column, direction))
+// ApplySortMapFor applique une SortMap dans l'ordre défini par le modèle, puis ajoute les colonnes de
+// départage (tiebreak, en ASC) pour un ordre total et une pagination stable.
+//   - Seules les colonnes du modèle (balise db) sont acceptées : une clé inconnue est ignorée.
+//   - Ordre : priority=N de la balise sorting (petit d'abord), puis ordre de déclaration des champs ;
+//     les colonnes du modèle sans balise sorting viennent ensuite, par ordre alphabétique.
+//   - La direction vient de la SortMap (ASC/DESC) ; une valeur invalide vaut ASC.
+func ApplySortMapFor(q squirrel.SelectBuilder, sortMap SortMap, model any, tiebreak ...string) squirrel.SelectBuilder {
+	t, err := structType(model)
+	if err != nil {
+		return ApplySortMap(q, sortMap)
+	}
+	known := map[string]bool{}
+	for i := 0; i < t.NumField(); i++ {
+		if column := modelColumn(t.Field(i)); column != "" {
+			known[column] = true
+		}
 	}
 
-	if len(orderByParts) > 0 {
-		q = q.OrderBy(strings.Join(orderByParts, ", "))
-	}
+	fields := sortingFields(t)
+	sort.SliceStable(fields, func(i, j int) bool {
+		if fields[i].priority != fields[j].priority {
+			return fields[i].priority < fields[j].priority
+		}
+		return fields[i].index < fields[j].index
+	})
 
-	return q
+	var parts []string
+	used := map[string]bool{}
+	add := func(column, direction string) {
+		if used[column] || !known[column] {
+			return
+		}
+		used[column] = true
+		parts = append(parts, column+" "+normalizeDirection(direction, "ASC"))
+	}
+	for _, f := range fields {
+		if direction, ok := sortMap[f.column]; ok {
+			add(f.column, direction)
+		}
+	}
+	rest := make([]string, 0, len(sortMap))
+	for column := range sortMap {
+		if !used[column] {
+			rest = append(rest, column)
+		}
+	}
+	sort.Strings(rest)
+	for _, column := range rest {
+		add(column, sortMap[column])
+	}
+	for _, column := range tiebreak {
+		add(strings.TrimSpace(column), "ASC")
+	}
+	if len(parts) == 0 {
+		return q
+	}
+	return q.OrderBy(strings.Join(parts, ", "))
 }
 
 // camelToSnake convertit un nom CamelCase en snake_case (ex: Firstname -> firstname)
